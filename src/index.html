@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>节假日倒计时</title>
+  <style>
+    *,
+    *:before,
+    *:after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    body {
+      text-align: center;
+      background-color: hsla(230, 40%, 50%, 1);
+    }
+
+    body:before {
+      content: '';
+      display: inline-block;
+      vertical-align: middle;
+      font-size: 0;
+      height: 100%;
+    }
+
+    h4 {
+      display: inline-block;
+      color: white;
+      font-family: 'Righteous', serif;
+      font-size: 4em;
+      text-shadow: .03em .03em 0 hsla(230, 40%, 50%, 1);
+      padding: 0px 12px;
+    }
+
+    h4:after {
+      content: attr(data-shadow);
+      position: absolute;
+      top: .06em;
+      left: .06em;
+      z-index: -1;
+      text-shadow: none;
+      background-image:
+        linear-gradient(45deg,
+          transparent 45%,
+          hsla(48, 20%, 90%, 1) 45%,
+          hsla(48, 20%, 90%, 1) 55%,
+          transparent 0);
+      background-size: .05em .05em;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+
+      animation: shad-anim 15s linear infinite;
+    }
+
+    @keyframes shad-anim {
+      0% {
+        background-position: 0 0
+      }
+
+      0% {
+        background-position: 100% -100%
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="wrap"></div>
+  <div style="margin: 30px"></div>
+  <div id="custom"></div>
+  <script src="https://unpkg.com/dayjs"></script>
+  <script src="./holiday.js"></script>
+  <script>
+    const wrap = document.getElementById('wrap')
+    const custom = document.getElementById('custom')
+    let tasks = []
+    const s = 1000
+    const m = s * 60
+    const h = m * 60
+    const d = h * 24
+    function init() {
+      const holiday = window.holiday || []
+      const today = dayjs().startOf('day')
+      const year = dayjs().get('year')
+      const month = dayjs().get('month') + 1 // 从 0 开始
+      const date = dayjs().get('date')
+      const time = today.valueOf()
+      const willIndex = holiday.findIndex(d => d.time >= time)
+      const will = holiday.filter(d => d.time >= time)
+      if (will.length === 0) {
+        const str = '假日还遥遥无期😭'
+        wrap.innerHTML = `<h4 data-shadow="${str}" class="undo">${str}</h4>`
+      } else {
+        if (time === will[0].time) {
+          // 正在假日中
+          let desc = '假日'
+          let index = willIndex
+          while (index >= 0) {
+            const holidayName = holiday[index].desc
+            if (holidayName) {
+              desc = holidayName
+              break;
+            } else {
+              index--
+            }
+          }
+          const str = `你已经在${desc}了 安心躺着吧😃`
+          wrap.innerHTML = `<h4 data-shadow="${str}" class="doing">${str}</h4>`
+        } else {
+          clearInterval(window.timer)
+          // 正在假日中
+          let desc = '假日'
+          let index = willIndex
+          while (index < holiday.length) {
+            const holidayName = holiday[index].desc
+            if (holidayName) {
+              desc = holidayName
+              break;
+            } else {
+              index++
+            }
+          }
+          startTimer(will[0].time, desc)
+        }
+      }
+    }
+
+    function startTimer(target, desc) {
+      window.timer = setInterval(() => {
+        const now = dayjs().valueOf()
+        if (now >= target) {
+          clearInterval(window.timer)
+          init()
+        } else {
+          const str = `距离${desc}`
+          const str2 = `还有${getTimeFotmat(target, now)}💪`
+          wrap.innerHTML = `
+          <div>
+            <h4 data-shadow="${str}" class="todo">${str}</h4>
+            <br/>
+            <h4 data-shadow="${str2}" class="todo">${str2}</h4>
+          </div>`
+        }
+      }, 1000);
+    }
+
+    function getTimeFotmat(target, now) {
+      let dev = target - now
+      let timeS = ''
+      const dd = Math.floor(dev / d)
+      if (dd > 0) {
+        timeS += `${dd}天`
+      }
+      dev %= d
+      const hh = Math.floor(dev / h)
+      if (hh > 0) {
+        timeS += `${hh}小时`
+      }
+      dev %= h
+      const mm = Math.floor(dev / m)
+      if (mm > 0) {
+        timeS += `${mm}分`
+      }
+      dev %= m
+      const ss = Math.floor(dev / s)
+      timeS += `${ss}秒`
+      return timeS
+    }
+
+    function initTasks() {
+      tasks = []
+      // 1 下班 18:00 - 9:00
+      tasks.push({
+        time: [dayjs().startOf('day').add(18, 'hour').valueOf(), dayjs().startOf('day').add(1, 'day').add(9, 'hour').valueOf()],
+        text: '下班'
+      })
+      // 1 双休日 周五 18:00 - 周日00:00:00
+      tasks.push({
+        time: [dayjs().startOf('week').add(5, 'day').add(18, 'hour').valueOf(), dayjs().endOf('week').add(1, 'day').add(9, 'hour').valueOf()],
+        text: '双休日'
+      })
+    }
+
+    function startTaskTimer() {
+      clearInterval(window.taskTimer)
+      initTasks()
+      window.taskTimer = setInterval(() => {
+        const now = dayjs().valueOf()
+        const doms = []
+        for (let i = 0; i < tasks.length; i++) {
+          const { time, text } = tasks[i]
+          const [start, end] = time
+          let innerHTML = undefined
+          if (now < start) {
+            // todo
+            const str = `距离${text}`
+            const str2 = `还有${getTimeFotmat(start, now)}💪`
+            innerHTML = `
+            <div>
+              <h4 data-shadow="${str}" class="todo">${str}</h4>
+              <br/>
+              <h4 data-shadow="${str2}" class="todo">${str2}</h4>
+            </div>`
+          } else if (now > end) {
+            // undo
+            initTasks()
+            return;
+          } else {
+            // doing
+            const str = `你已经在${text}了 安心躺着吧😃`
+            innerHTML = `<h4 data-shadow="${str}" class="doing">${str}</h4>`
+          }
+          if (innerHTML) {
+            doms.push(innerHTML)
+          }
+        }
+        custom.innerHTML = doms.join('<div style="margin: 30px"></div>')
+      }, 1000);
+    }
+
+
+    init()
+    startTaskTimer()
+  </script>
+</body>
+
+</html>
