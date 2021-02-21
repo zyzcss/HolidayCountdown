@@ -4,8 +4,8 @@ const path = require('path')
 const fs = require('fs')
 var zlib = require('zlib')
 
-const firstYear = 2020
-const lastYear = 2021
+const firstYear = 2021
+const lastYear = 2022
 
 let year = firstYear
 let month = 1
@@ -42,13 +42,13 @@ function nextYear() {
       const res = JSON.parse(html.slice(0, html.length - 2).slice(html.indexOf('{')))
       const { almanac } = res.data[0]
       almanac.forEach(d => {
-        const { year, day, desc, status, month } = d
+        const { year, day, term, desc, status, month } = d
         if (status === '1' && !result.some(d => String(d.year) === year && String(d.day) === day && String(d.month) === month)) {
           result.push({
             year: Number(year),
             month: Number(month),
             day: Number(day),
-            desc,
+            desc: term === '' ? desc : term,
             status,
             time: new Date(`${year}/${month}/${day}`).getTime()
           })
